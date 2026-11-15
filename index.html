@@ -61,8 +61,10 @@
   <div class="modal">
     <h2 id="setTitle">Nastavení</h2>
     <label>Gemini API klíč <span class="free">zdarma</span>
-      <input id="sKey" class="inp" type="password" placeholder="AIza…" autocomplete="off" spellcheck="false" />
+      <input id="sKey" class="inp" type="password" placeholder="AIza…" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
       <small id="sKeyState"></small>
+      <button type="button" class="btn-ghost" id="sTest" style="align-self:flex-start">Vyzkoušet klíč</button>
+      <small id="sTestRes" role="status"></small>
       <small>Klíč získáš zdarma na <a data-ext="https://aistudio.google.com/apikey">aistudio.google.com/apikey</a> → přihlas se Google účtem → <b>Create API key</b> → zkopíruj a vlož sem. Uloží se jen v tomhle zařízení (iPad, iPhone, Mac – na každém ho vlož zvlášť).</small>
     </label>
     <div class="row2">

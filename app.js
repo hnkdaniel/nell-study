@@ -584,7 +584,7 @@ const VOICES_M = [['Puck', 'veselý'], ['Charon', 'informativní'], ['Fenrir', '
 let sLen = 'stredni', lastFocus = null;
 async function openSettings() {
   settings = await nell.getSettings(); lastFocus = document.activeElement;
-  $('#sKey').value = ''; $('#sModel').value = settings.model || '';
+  $('#sKey').value = ''; $('#sModel').value = settings.model || ''; $('#sTestRes').textContent = '';
   $('#sKeyState').textContent = settings.hasGemini ? '✓ Klíč je uložený. Nový vlož jen tehdy, když ho chceš změnit.' : 'Klíč zatím chybí – bez něj aplikace poznámky nepřečte.';
   $('#sVoiceA').innerHTML = VOICES_F.map(([v, d]) => `<option value="${v}">${v} – ${d}</option>`).join(''); $('#sVoiceA').value = settings.voiceA || 'Aoede';
   $('#sVoiceB').innerHTML = VOICES_M.map(([v, d]) => `<option value="${v}">${v} – ${d}</option>`).join(''); $('#sVoiceB').value = settings.voiceB || 'Puck';
@@ -601,6 +601,10 @@ $('#sSave').onclick = async () => {
   settings = await nell.getSettings(); closeSettings();
   toast(settings.hasGemini ? 'Uloženo.' : 'Uloženo – klíč ale pořád chybí.', !settings.hasGemini);
   if (!cur() || cur().status === 'draft') renderNew();
+};
+$('#sTest').onclick = async () => {
+  const r = $('#sTestRes'); r.textContent = 'Zkouším…'; r.style.color = '';
+  const res = await nell.testKey($('#sKey').value); r.textContent = res.msg; r.style.color = res.ok ? 'var(--ok)' : 'var(--bad)';
 };
 $('#sClear').onclick = async () => { await nell.saveSettings({ clearKey: true }); openSettings(); };
 

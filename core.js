@@ -39,7 +39,8 @@ async function update(id, fn) {
 const DEFAULT_SETTINGS = { model: 'gemini-flash-latest', voiceA: 'Aoede', voiceB: 'Puck', podcastLength: 'stredni' };
 const getSettings = () => { try { return { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem('nell:settings') || '{}') }; } catch { return { ...DEFAULT_SETTINGS }; } };
 const saveSettingsLS = (s) => localStorage.setItem('nell:settings', JSON.stringify(s));
-const getKey = () => localStorage.getItem('nell:key') || '';
+const cleanKey = (k) => String(k || '').replace(/[\u2010-\u2015\u2212]/g, '-').replace(/[^A-Za-z0-9_\-]/g, '');
+const getKey = () => cleanKey(localStorage.getItem('nell:key'));
 
 /* ---------- obrázky ---------- */
 async function toJPEG(file) {
@@ -81,8 +82,14 @@ async function blobToB64(b) { const buf = new Uint8Array(await b.arrayBuffer());
 const G = 'https://generativelanguage.googleapis.com';
 function needKey() { const k = getKey(); if (!k) throw new Error('Chybí Gemini API klíč. Otevři Nastavení a vlož ho – je zdarma z aistudio.google.com/apikey.'); return k; }
 async function gfetch(url, opts) {
-  try { return await fetch(url, opts); }
-  catch { throw new Error('Nepodařilo se spojit s Google Gemini. Jsi připojená k internetu?'); }
+  let last;
+  for (let i = 0; i < 3; i++) {
+    try { return await fetch(url, opts); }
+    catch (e) { last = e; if (!navigator.onLine) break; await sleep(1500 * (i + 1)); }
+  }
+  const why = String(last?.message || last || '');
+  if (!navigator.onLine) throw new Error('Zařízení je offline – připoj se k internetu a zkus to znovu.');
+  throw new Error(`Spojení s Google Gemini se nepovedlo (${why || 'neznámý důvod'}). Zkontroluj v Nastavení klíč tlačítkem „Vyzkoušet klíč“. Pokud používáš blokátor reklam nebo VPN, zkus ho vypnout.`);
 }
 const retryDelay = (j) => { const d = (j?.error?.details || []).find((x) => x.retryDelay)?.retryDelay; return d ? Math.ceil(parseFloat(d)) : 0; };
 const isDaily = (msg) => /per ?day|PerDay|daily/i.test(msg || '');
@@ -326,7 +333,7 @@ window.nell = {
     if (typeof d.model === 'string') s.model = d.model.trim() || DEFAULT_SETTINGS.model;
     for (const k of ['voiceA', 'voiceB', 'podcastLength']) if (typeof d[k] === 'string' && d[k]) s[k] = d[k];
     saveSettingsLS(s);
-    if (typeof d.geminiKey === 'string' && d.geminiKey.trim()) localStorage.setItem('nell:key', d.geminiKey.trim());
+    if (typeof d.geminiKey === 'string' && cleanKey(d.geminiKey)) localStorage.setItem('nell:key', cleanKey(d.geminiKey));
     if (d.clearKey) localStorage.removeItem('nell:key');
     return true;
   },
@@ -382,6 +389,16 @@ window.nell = {
     } finally { running.delete(id); progress(id, -1, ''); }
   },
   running: async () => [...running],
+  testKey: async (k) => {
+    const key = cleanKey(k) || getKey();
+    if (!key) return { ok: false, msg: 'Nejdřív vlož klíč.' };
+    try {
+      const r = await fetch(`${G}/v1beta/models?pageSize=1`, { headers: { 'x-goog-api-key': key } });
+      if (r.ok) return { ok: true, msg: '✓ Klíč funguje, spojení s Gemini je v pořádku.' };
+      let m = ''; try { m = (await r.json()).error?.message || ''; } catch {}
+      return { ok: false, msg: r.status === 400 || r.status === 403 ? `Klíč je neplatný (${r.status}). Zkopíruj ho znovu z aistudio.google.com/apikey.` : `Gemini odpověděl chybou ${r.status}: ${m}` };
+    } catch (e) { return { ok: false, msg: `Spojení se nepovedlo (${e.message}). Je zapnutý blokátor reklam, VPN nebo omezení obsahu?` }; }
+  },
   exportPodcast: async (id) => {
     const s = findSet(id); if (!s?.podcast?.file) return { ok: false, error: s?.podcast?.engine === 'speech' ? 'Podcast čtený hlasem iPadu nejde uložit do souboru – namluv ho AI hlasy.' : 'Podcast zatím není hotový.' };
     const blob = await getFile(id, s.podcast.file);

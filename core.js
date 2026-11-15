@@ -39,7 +39,7 @@ async function update(id, fn) {
 const DEFAULT_SETTINGS = { model: 'gemini-flash-latest', voiceA: 'Aoede', voiceB: 'Puck', podcastLength: 'stredni' };
 const getSettings = () => { try { return { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem('nell:settings') || '{}') }; } catch { return { ...DEFAULT_SETTINGS }; } };
 const saveSettingsLS = (s) => localStorage.setItem('nell:settings', JSON.stringify(s));
-const cleanKey = (k) => String(k || '').replace(/[\u2010-\u2015\u2212]/g, '-').replace(/[^A-Za-z0-9_\-]/g, '');
+const cleanKey = (k) => String(k || '').replace(/[\u2010-\u2015\u2212]/g, '-').replace(/[^\x21-\x7e]/g, '');
 const getKey = () => cleanKey(localStorage.getItem('nell:key'));
 
 /* ---------- obrázky ---------- */
@@ -111,7 +111,7 @@ async function callGemini(parts, { json = false, maxTokens = 32768, temperature 
       }
       let body = {}; try { body = await res.json(); } catch {}
       const msg = body.error?.message || '';
-      if (res.status === 400 && /API key/i.test(msg)) throw new Error('Neplatný Gemini API klíč. Zkontroluj ho v Nastavení.');
+      if ((res.status === 400 && /API key/i.test(msg)) || res.status === 401) throw new Error('Google odmítl Gemini klíč (' + res.status + (msg ? ': ' + msg : '') + '). Zkontroluj ho v Nastavení.');
       if (res.status === 403) throw new Error('Gemini klíč nemá přístup (403). Vytvoř nový klíč na aistudio.google.com/apikey.');
       lastErr = new Error(`Gemini ${model}: ${res.status} ${msg}`);
       if (res.status === 400 && /thinking/i.test(msg) && thinking) { thinking = false; attempt--; continue; }
@@ -396,7 +396,7 @@ window.nell = {
       const r = await fetch(`${G}/v1beta/models?pageSize=1`, { headers: { 'x-goog-api-key': key } });
       if (r.ok) return { ok: true, msg: '✓ Klíč funguje, spojení s Gemini je v pořádku.' };
       let m = ''; try { m = (await r.json()).error?.message || ''; } catch {}
-      return { ok: false, msg: r.status === 400 || r.status === 403 ? `Klíč je neplatný (${r.status}). Zkopíruj ho znovu z aistudio.google.com/apikey.` : `Gemini odpověděl chybou ${r.status}: ${m}` };
+      return { ok: false, msg: `Google klíč odmítl (${r.status}${m ? ': ' + m : ''}). Zkopíruj ho celý znovu z aistudio.google.com/apikey – nový klíč začíná „AQ.“, starší „AIza“.` };
     } catch (e) { return { ok: false, msg: `Spojení se nepovedlo (${e.message}). Je zapnutý blokátor reklam, VPN nebo omezení obsahu?` }; }
   },
   exportPodcast: async (id) => {

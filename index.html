@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Nell Study" />
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#160d22" media="(prefers-color-scheme: dark)" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<link rel="icon" type="image/png" href="icon-192.png" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; media-src 'self' blob:; connect-src 'self' https://generativelanguage.googleapis.com" />
+<meta name="color-scheme" content="light dark" />
+<title>NELL STUDY</title>
+<link rel="stylesheet" href="styles.css" />
+<link rel="stylesheet" href="web.css" />
+</head>
+<body>
+<div id="splash" aria-hidden="true"><div class="splash-inner"><img src="icon-512.png" alt="" class="splash-icon" /><div class="splash-word">Nell Study</div></div></div>
+
+<div class="scrim" id="scrim"></div>
+<div class="app">
+  <aside class="sidebar" aria-label="Postranní panel">
+    <div class="drag-zone"></div>
+    <div class="brand">
+      <img src="icon-192.png" class="brand-icon" alt="" />
+      <div><div class="brand-name">Nell Study</div><div class="brand-sub">Učení z poznámek</div></div>
+    </div>
+    <button id="btnNew" class="btn-primary block" title="Nová látka (⌘N)">
+      <svg viewBox="0 0 24 24" class="ico" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/></svg>
+      Nová látka
+    </button>
+    <div class="side-label" id="histLabel">Historie</div>
+    <nav id="historyList" class="history" aria-labelledby="histLabel"></nav>
+    <button id="btnSettings" class="side-btn" title="Nastavení (⌘,)">
+      <svg viewBox="0 0 24 24" class="ico" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="7" r="2.2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="10" cy="17" r="2.2" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+      Nastavení
+    </button>
+  </aside>
+
+  <main class="main">
+    <header class="toolbar">
+      <button class="side-toggle" id="btnSide" aria-label="Historie látek"><svg viewBox="0 0 24 24" class="ico" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button>
+      <div class="tb-title" id="tbTitle"></div>
+      <div class="tabs hidden" id="tabs" role="tablist" aria-label="Způsob učení">
+        <button role="tab" data-tab="notes">Poznámky</button>
+        <button role="tab" data-tab="podcast">Podcast</button>
+        <button role="tab" data-tab="quiz">Kvíz</button>
+        <button role="tab" data-tab="cards">Kartičky</button>
+      </div>
+      <div class="tb-actions" id="tbActions"></div>
+    </header>
+    <section id="content" class="content" tabindex="-1"></section>
+  </main>
+</div>
+
+<div id="settings" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="setTitle">
+  <div class="modal">
+    <h2 id="setTitle">Nastavení</h2>
+    <label>Gemini API klíč <span class="free">zdarma</span>
+      <input id="sKey" class="inp" type="password" placeholder="AIza…" autocomplete="off" spellcheck="false" />
+      <small id="sKeyState"></small>
+      <small>Klíč získáš zdarma na <a data-ext="https://aistudio.google.com/apikey">aistudio.google.com/apikey</a> → přihlas se Google účtem → <b>Create API key</b> → zkopíruj a vlož sem. Uloží se jen v tomhle zařízení (iPad, iPhone, Mac – na každém ho vlož zvlášť).</small>
+    </label>
+    <div class="row2">
+      <label>Hlas Nely
+        <select id="sVoiceA" class="inp"></select>
+      </label>
+      <label>Hlas Ondry
+        <select id="sVoiceB" class="inp"></select>
+      </label>
+    </div>
+    <label>Výchozí délka podcastu
+      <div class="seg" id="sLen" role="radiogroup">
+        <button data-v="kratky" role="radio">Krátký · 3–4 min</button>
+        <button data-v="stredni" role="radio">Střední · 6–8 min</button>
+        <button data-v="dlouhy" role="radio">Dlouhý · 10–12 min</button>
+      </div>
+    </label>
+    <details class="adv"><summary>Pokročilé</summary>
+      <label>Model pro text
+        <input id="sModel" class="inp" type="text" spellcheck="false" />
+        <small>Výchozí: gemini-flash-latest. Podcast mluví model gemini-3.1-flash-tts-preview, záložně čte český hlas zařízení.</small>
+      </label>
+    </details>
+    <div class="modal-actions">
+      <button id="sClear" class="btn-ghost">Smazat klíč</button>
+      <div class="grow"></div>
+      <button id="sCancel" class="btn-ghost">Zrušit</button>
+      <button id="sSave" class="btn-primary">Uložit</button>
+    </div>
+  </div>
+</div>
+
+<div id="lightbox" class="overlay hidden" role="dialog" aria-modal="true" aria-label="Fotka poznámek">
+  <button class="lb-close" id="lbClose" aria-label="Zavřít">✕</button>
+  <button class="lb-nav prev" id="lbPrev" aria-label="Předchozí">‹</button>
+  <img id="lbImg" alt="Fotka poznámek" />
+  <button class="lb-nav next" id="lbNext" aria-label="Další">›</button>
+</div>
+
+<div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+<script src="core.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -49,10 +49,10 @@ async function toJPEG(file) {
   catch {
     bmp = await new Promise((ok, no) => { const u = URL.createObjectURL(file); const im = new Image(); im.onload = () => { ok(im); URL.revokeObjectURL(u); }; im.onerror = () => no(new Error(`${file.name || 'Soubor'} není obrázek, který umím otevřít.`)); im.src = u; });
   }
-  const w = bmp.width, h = bmp.height, k = Math.min(1, 2400 / Math.max(w, h));
+  const w = bmp.width, h = bmp.height, k = Math.min(1, 2000 / Math.max(w, h));
   const c = document.createElement('canvas'); c.width = Math.round(w * k); c.height = Math.round(h * k);
   c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
-  return new Promise((ok) => c.toBlob(ok, 'image/jpeg', 0.85));
+  return new Promise((ok) => c.toBlob(ok, 'image/jpeg', 0.82));
 }
 async function importFiles(id, files) {
   const images = [], errors = [];
@@ -89,27 +89,46 @@ async function gfetch(url, opts) {
   }
   const why = String(last?.message || last || '');
   if (!navigator.onLine) throw new Error('Zařízení je offline – připoj se k internetu a zkus to znovu.');
-  throw new Error(`Spojení s Google Gemini se nepovedlo (${why || 'neznámý důvod'}). Zkontroluj v Nastavení klíč tlačítkem „Vyzkoušet klíč“. Pokud používáš blokátor reklam nebo VPN, zkus ho vypnout.`);
+  throw new Error(`Spojení s Google Gemini se přerušilo (${why || 'neznámý důvod'}). Zkus to znovu – během zpracování nech iPad odemčený a aplikaci otevřenou.`);
 }
 const retryDelay = (j) => { const d = (j?.error?.details || []).find((x) => x.retryDelay)?.retryDelay; return d ? Math.ceil(parseFloat(d)) : 0; };
 const isDaily = (msg) => /per ?day|PerDay|daily/i.test(msg || '');
+async function readSSE(res) {
+  const reader = res.body.getReader(); const dec = new TextDecoder(); let buf = '', text = '', finish = '';
+  const eat = (line) => {
+    line = line.trim(); if (!line.startsWith('data:')) return;
+    try { const j = JSON.parse(line.slice(5)); const c = j.candidates?.[0]; if (!c) return; for (const p of c.content?.parts || []) if (!p.thought && p.text) text += p.text; if (c.finishReason) finish = c.finishReason; } catch {}
+  };
+  for (;;) {
+    const { done, value } = await reader.read(); if (done) break;
+    buf += dec.decode(value, { stream: true }); let i;
+    while ((i = buf.indexOf('\n')) >= 0) { eat(buf.slice(0, i)); buf = buf.slice(i + 1); }
+  }
+  eat(buf);
+  return { text, finish };
+}
+let wake = null;
+async function keepAwake(on) {
+  try { if (on && !wake && navigator.wakeLock) wake = await navigator.wakeLock.request('screen'); if (!on && wake) { await wake.release(); wake = null; } } catch {}
+}
 async function callGemini(parts, { json = false, maxTokens = 32768, temperature = 0.3, onWait } = {}) {
   const key = needKey();
   const models = [getSettings().model, 'gemini-flash-latest', 'gemini-3.5-flash', 'gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-flash-lite-latest'].filter((v, i, a) => v && a.indexOf(v) === i);
   let lastErr, thinking = true;
   for (const model of models) {
     for (let attempt = 0; attempt < 3; attempt++) {
-      const res = await gfetch(`${G}/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+      const res = await gfetch(`${G}/v1beta/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`, {
         method: 'POST', headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
         body: JSON.stringify({ contents: [{ role: 'user', parts }], generationConfig: { temperature, maxOutputTokens: maxTokens, ...(json ? { responseMimeType: 'application/json' } : {}), ...(thinking ? { thinkingConfig: { thinkingLevel: 'low' } } : {}) } })
       });
       if (res.ok) {
-        const j = await res.json(); const cand = j.candidates?.[0] || {};
-        const text = (cand.content?.parts || []).filter((p) => !p.thought).map((p) => p.text || '').join('');
-        if (text) return { text, model };
-        lastErr = new Error('Gemini vrátil prázdnou odpověď' + (cand.finishReason ? ` (${cand.finishReason})` : '') + '.'); break;
+        let out;
+        try { out = await readSSE(res); }
+        catch (e) { lastErr = new Error(`Spojení s Gemini se během odpovědi přerušilo (${e.message}).`); await sleep(2000); continue; }
+        if (out.text) return { text: out.text, model };
+        lastErr = new Error('Gemini vrátil prázdnou odpověď' + (out.finish ? ` (${out.finish})` : '') + '.'); break;
       }
-      let body = {}; try { body = await res.json(); } catch {}
+      let body = {}; try { body = await res.json(); if (Array.isArray(body)) body = body[0] || {}; } catch {}
       const msg = body.error?.message || '';
       if ((res.status === 400 && /API key/i.test(msg)) || res.status === 401) throw new Error('Google odmítl Gemini klíč (' + res.status + (msg ? ': ' + msg : '') + '). Zkontroluj ho v Nastavení.');
       if (res.status === 403) throw new Error('Gemini klíč nemá přístup (403). Vytvoř nový klíč na aistudio.google.com/apikey.');
@@ -216,7 +235,7 @@ async function makeScript(s, len) {
 
 /* ---------- podcast: Gemini TTS ---------- */
 const TTS_MODELS = ['gemini-3.1-flash-tts-preview', 'gemini-2.5-flash-preview-tts'];
-function chunkLines(lines, maxWords = 420) {
+function chunkLines(lines, maxWords = 280) {
   const out = []; let cur = [], words = 0;
   lines.forEach((l, i) => { const w = l.text.split(/\s+/).length; if (cur.length && words + w > maxWords) { out.push(cur); cur = []; words = 0; } cur.push(i); words += w; });
   if (cur.length) out.push(cur); return out;
@@ -297,7 +316,7 @@ async function voicePodcast(id, engine) {
 
 async function processSet(id, opts = {}) {
   if (running.has(id)) return { ok: false, error: 'Tahle látka se už zpracovává.' };
-  running.add(id);
+  running.add(id); keepAwake(true);
   const len = opts.podcastLength || getSettings().podcastLength;
   try {
     needKey();
@@ -322,7 +341,7 @@ async function processSet(id, opts = {}) {
   } catch (e) {
     await update(id, (x) => { x.status = x.notes ? 'done' : 'error'; x.error = e.message; });
     return { ok: false, error: e.message };
-  } finally { running.delete(id); progress(id, -1, ''); }
+  } finally { running.delete(id); progress(id, -1, ''); if (!running.size) keepAwake(false); }
 }
 
 window.nell = {

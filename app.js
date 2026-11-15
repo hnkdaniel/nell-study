@@ -618,4 +618,5 @@ $('#sClear').onclick = async () => { await nell.saveSettings({ clearKey: true })
   if (!settings.hasGemini) setTimeout(openSettings, 1500);
 })();
 
+if (navigator.standalone || matchMedia('(display-mode: standalone)').matches) document.documentElement.classList.add('standalone');
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});

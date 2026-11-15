@@ -54,3 +54,16 @@ body { -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%;
 @media (prefers-reduced-motion: reduce) { .sidebar { transition: none; } }
 @media (max-width: 960px) { .sidebar { box-shadow: none; } body.side-open .sidebar { box-shadow: 0 0 60px rgba(30,10,45,.25); } }
 @media (max-width: 960px) { .sections { columns: 1; } }
+/* Aplikace přidaná na plochu iPadu: lišta níž, mimo systémový okraj a ovládání oken */
+@media (display-mode: standalone), (display-mode: fullscreen) {
+  .toolbar { padding-top: calc(env(safe-area-inset-top) + 30px); padding-bottom: 8px; min-height: calc(64px + env(safe-area-inset-top)); }
+  .sidebar { padding-top: calc(env(safe-area-inset-top) + 22px); }
+}
+html.standalone .toolbar { padding-top: calc(env(safe-area-inset-top) + 30px); padding-bottom: 8px; min-height: calc(64px + env(safe-area-inset-top)); }
+html.standalone .sidebar { padding-top: calc(env(safe-area-inset-top) + 22px); }
+@media (hover: none) and (pointer: coarse) {
+  .tabs { padding: 4px; }
+  .tabs button { min-height: 42px; padding: 9px 18px; font-size: 14px; }
+  .side-toggle { width: 48px; height: 48px; }
+  .tb-actions .btn-ghost { min-height: 42px; }
+}

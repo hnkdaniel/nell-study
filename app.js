@@ -300,7 +300,7 @@ class SpeechAudio extends EventTarget {
     if (this.i >= this.lines.length) { this.paused = true; this.ended = true; this._t = this.duration; this.dispatchEvent(new Event('ended')); this.dispatchEvent(new Event('pause')); return; }
     const l = this.lines[this.i]; const u = new SpeechSynthesisUtterance(l.text);
     u.lang = 'cs-CZ'; const v = czVoice(); if (v) u.voice = v;
-    u.rate = this.playbackRate; u.pitch = l.speaker === 'Ondra' ? 0.82 : 1.1;
+    u.rate = this.playbackRate; u.pitch = l.speaker === 'Nela' ? 1.1 : 0.82;
     const [a, b] = this.seg[this.i] || [this._t, this._t + 5]; this._t = Math.max(this._t, a); const t0 = Date.now(), base = this._t;
     this._tick = setInterval(() => { this._t = Math.min(b - 0.01, base + (Date.now() - t0) / 1000 * this.playbackRate * 0.9); this.dispatchEvent(new Event('timeupdate')); }, 250);
     u.onend = () => { if (gen !== this._gen) return; clearInterval(this._tick); this.i++; this._t = this.seg[this.i]?.[0] ?? this.duration; this.dispatchEvent(new Event('timeupdate')); if (!this.paused) this._speak(); };
@@ -339,7 +339,7 @@ function renderPodcast() {
       <div class="cover" aria-hidden="true"><span class="ns">NS</span><div class="ct">${esc(s.title)}</div><div class="cs">NELL STUDY podcast</div></div>
       <div>
         <div class="p-title">${esc(s.title)}</div>
-        <div class="p-sub">${pc.engine === 'speech' ? 'Čte hlas iPadu' : 'Nela a Ondra'} · ${Math.max(1, Math.round(dur / 60))} min${pc.engine === 'speech' ? ' (odhad)' : ''}</div>
+        <div class="p-sub">${pc.engine === 'speech' ? 'Čte hlas iPadu' : 'Nela a Daniel'} · ${Math.max(1, Math.round(dur / 60))} min${pc.engine === 'speech' ? ' (odhad)' : ''}</div>
         <div class="controls">
           <button class="skip" id="pBack" aria-label="O 15 sekund zpět" title="O 15 s zpět">${BACK15}<span>15</span></button>
           <button class="play" id="pPlay" aria-label="Přehrát">${PLAY}</button>
@@ -354,7 +354,7 @@ function renderPodcast() {
   const working = busy ? `<div class="card working" role="status"><span class="spin" aria-hidden="true"></span><div><b>${hasAudio ? 'Připravuju novou verzi podcastu' : 'Podcast se připravuje'}<div class="hint">Nech aplikaci otevřenou, dokud to nedoběhne.</div></b><div class="muted" id="podWork">${esc(prog[s.id]?.text || 'Pracuju…')}</div></div></div>` : '';
   const err = !busy && pc.status === 'error' && pc.error ? `<div class="err-box">${esc(pc.error)}</div>` : '';
   const note = pc.note && hasAudio && !busy ? `<div class="note-box">${esc(pc.note)}</div>` : '';
-  const empty = !hasAudio && !busy ? `<div class="card q-start"><div class="big" style="font-size:40px">🎧</div><h2 style="font-size:20px;margin-top:6px">Podcast zatím není</h2><p class="muted" style="margin-top:6px">${pc.error ? 'Při namlouvání se něco pokazilo – zkus to znovu.' : 'Vytvořím rozhovor, ve kterém Nela s Ondrou celou látku vysvětlí.'}</p></div>` : '';
+  const empty = !hasAudio && !busy ? `<div class="card q-start"><div class="big" style="font-size:40px">🎧</div><h2 style="font-size:20px;margin-top:6px">Podcast zatím není</h2><p class="muted" style="margin-top:6px">${pc.error ? 'Při namlouvání se něco pokazilo – zkus to znovu.' : 'Vytvořím rozhovor, ve kterém Nela s Danielem celou látku vysvětlí.'}</p></div>` : '';
   const acts = !busy ? `<div class="p-actions">
       ${pc.script ? `<button class="btn-primary" id="pRedo">${pc.file ? 'Namluvit znovu' : 'Namluvit AI hlasy'}</button><button class="btn-ghost" id="pMac" title="Bez limitu – čte český hlas iPadu">Číst hlasem iPadu</button>` : `<button class="btn-primary" id="pNew">Vytvořit podcast</button>`}
       <div class="grow"></div>
@@ -362,7 +362,7 @@ function renderPodcast() {
       ${pc.script ? '<button class="btn-ghost" id="pScript">Nový scénář</button>' : ''}
     </div>` : '';
   const script = pc.script ? `<h2 class="sec-title" style="margin-top:14px">Přepis rozhovoru${hasAudio ? '<span class="grow"></span><span class="hint" style="font-weight:400">Kliknutím na repliku tam přeskočíš</span>' : ''}</h2>
-    <div class="script" id="pScriptList">${pc.script.map((l, i) => `<button class="line" data-i="${i}"><span class="av ${l.speaker}" aria-hidden="true">${l.speaker[0]}</span><span><div class="who">${l.speaker}</div><div class="tx">${esc(l.text)}</div></span></button>`).join('')}</div>` : '';
+    <div class="script" id="pScriptList">${pc.script.map((l, i) => { const sp = l.speaker === 'Nela' ? 'Nela' : 'Daniel'; return `<button class="line" data-i="${i}"><span class="av ${sp}" aria-hidden="true">${sp[0]}</span><span><div class="who">${sp}</div><div class="tx">${esc(l.text)}</div></span></button>`; }).join('')}</div>` : '';
   $('#content').innerHTML = `<div class="narrow view" style="display:flex;flex-direction:column;gap:14px">${head}${working}${err}${note}${empty}${acts}${script}</div>`;
   let selLen = pc.length || settings.podcastLength || 'stredni';
   $('#pLen')?.addEventListener('click', (e) => { const b = e.target.closest('[data-v]'); if (!b) return; selLen = b.dataset.v; $$('#pLen button').forEach((x) => x.setAttribute('aria-checked', String(x === b))); });

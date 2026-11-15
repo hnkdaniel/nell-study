@@ -212,7 +212,7 @@ details.trans pre { white-space: pre-wrap; font-family: var(--body); font-size: 
 .line.now { background: var(--grad-soft); }
 .av { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; color: #fff; flex: none; }
 .av.Nela { background: linear-gradient(135deg, #c026d3, #db2777); }
-.av.Ondra { background: linear-gradient(135deg, #6d28d9, #7c3aed); }
+.av.Daniel, .av.Ondra { background: linear-gradient(135deg, #6d28d9, #7c3aed); }
 .line .who { font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 2px; }
 .line .tx { font-size: 14.5px; line-height: 1.6; }
 .line.now .tx { color: var(--text); }

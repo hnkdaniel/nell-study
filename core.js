@@ -160,7 +160,7 @@ const podcastPrompt = (s, len) => { const [w, t] = LEN[len] || LEN.stredni; retu
 
 Moderátoři:
 - Nela – průvodkyně, látku vysvětluje jasně, vřele a s nadšením.
-- Ondra – zvídavý parťák, ptá se na to, na co by se zeptal student, shrnuje vlastními slovy, přidává příklady z praxe a mnemotechnické pomůcky.
+- Daniel – zvídavý parťák, ptá se na to, na co by se zeptal student, shrnuje vlastními slovy, přidává příklady z praxe a mnemotechnické pomůcky.
 
 Pravidla:
 - Vysvětli VŠECHNO důležité z látky (definice, pojmy, čísla, souvislosti), nic podstatného nevynech. Vysvětluj pochopitelně, s příklady a přirovnáními, ale fakta neměň a nevymýšlej.
@@ -168,7 +168,7 @@ Pravidla:
 - Čísla, jednotky a zkratky piš tak, jak se mají vyslovit (např. „dvacet procent“, „deset na minus třetí“, zkratku DNA jako „dé en á“). Latinské a odborné termíny ponech, jen je jednou vysvětli.
 - Začni krátkým přivítáním („Ahoj, tady NELL STUDY…“) a představením tématu. Na konci shrňte 3–6 nejdůležitějších věcí, které si zapamatovat, a rozlučte se.
 - Délka zhruba ${w} slov (asi ${t} poslechu). Jedna replika max. 4 věty.
-Vrať POUZE platný JSON: {"repliky":[{"mluvci":"Nela","text":""},{"mluvci":"Ondra","text":""}]}
+Vrať POUZE platný JSON: {"repliky":[{"mluvci":"Nela","text":""},{"mluvci":"Daniel","text":""}]}
 
 LÁTKA:
 ${notesText(s)}`; };
@@ -202,7 +202,7 @@ async function makeStudy(s) {
 async function makeScript(s, len) {
   const r = await callGemini([{ text: podcastPrompt(s, len) }], { json: true, temperature: 0.8, onWait: (d) => progress(s.id, 2, `Čekám na limit zdarma (${d} s)…`) });
   const j = extractJSON(r.text);
-  const lines = (j.repliky || []).map((l) => ({ speaker: /ondr/i.test(l.mluvci) ? 'Ondra' : 'Nela', text: String(l.text || '').replace(/[*_#]/g, '').trim() })).filter((l) => l.text);
+  const lines = (j.repliky || []).map((l) => ({ speaker: /dani|ondr/i.test(l.mluvci) ? 'Daniel' : 'Nela', text: String(l.text || '').replace(/[*_#]/g, '').trim() })).filter((l) => l.text);
   if (lines.length < 2) throw new Error('Scénář podcastu se nepodařilo napsat.');
   return lines;
 }
@@ -222,7 +222,7 @@ async function ttsChunk(text, onWait) {
         method: 'POST', headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
         body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text }] }], generationConfig: { responseModalities: ['AUDIO'], speechConfig: { multiSpeakerVoiceConfig: { speakerVoiceConfigs: [
           { speaker: 'Nela', voiceConfig: { prebuiltVoiceConfig: { voiceName: st.voiceA || 'Aoede' } } },
-          { speaker: 'Ondra', voiceConfig: { prebuiltVoiceConfig: { voiceName: st.voiceB || 'Puck' } } }] } } } })
+          { speaker: 'Daniel', voiceConfig: { prebuiltVoiceConfig: { voiceName: st.voiceB || 'Puck' } } }] } } } })
       });
       if (res.ok) {
         const j = await res.json(); const p = (j.candidates?.[0]?.content?.parts || []).find((x) => x.inlineData || x.inline_data); const d = p && (p.inlineData || p.inline_data);
@@ -255,7 +255,7 @@ async function podcastGemini(s) {
   const parts = []; let rate = 24000, t = 0; const seg = [];
   for (let c = 0; c < chunks.length; c++) {
     progress(s.id, 3, `Namlouvám podcast… ${c + 1}/${chunks.length}`);
-    const text = `Přečti česky tento rozhovor dvou moderátorů vzdělávacího podcastu NELL STUDY. Mluví přirozeně, vřele a s chutí, se správnou českou výslovností, v klidném srozumitelném tempu – jako kamarádi, kteří si spolu vysvětlují látku.\n\n${chunks[c].map((i) => `${lines[i].speaker}: ${lines[i].text}`).join('\n')}`;
+    const text = `Přečti česky tento rozhovor dvou moderátorů vzdělávacího podcastu NELL STUDY. Mluví přirozeně, vřele a s chutí, se správnou českou výslovností, v klidném srozumitelném tempu – jako kamarádi, kteří si spolu vysvětlují látku.\n\n${chunks[c].map((i) => `${lines[i].speaker === 'Nela' ? 'Nela' : 'Daniel'}: ${lines[i].text}`).join('\n')}`;
     const r = await ttsChunk(text, (d) => progress(s.id, 3, `Čekám na limit zdarma (${d} s), pak namluvím díl ${c + 1}/${chunks.length}…`));
     rate = r.rate; const dur = r.pcm.length / (rate * 2);
     timeLines(lines, chunks[c], t, dur, seg); t += dur; parts.push(r.pcm);
